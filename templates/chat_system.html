@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-User Chat System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body { font-family: 'Arial', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f2f5; color: #333; }
+        .chat-container { width: 450px; max-width: 95%; background-color: #ffffff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 600px; overflow: hidden; }
+        .chat-header { background-color: #007bff; color: white; padding: 18px; border-top-left-radius: 10px; border-top-right-radius: 10px; text-align: center; font-size: 1.4em; font-weight: bold; }
+        .chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; background-color: #e5e5e5; border-bottom: 1px solid #ddd; }
+        .message { margin-bottom: 15px; padding: 10px 15px; border-radius: 18px; max-width: 80%; word-wrap: break-word; line-height: 1.4; font-size: 0.95em; }
+        .my-message { background-color: #dcf8c6; margin-left: auto; text-align: right; }
+        .other-message { background-color: #fff; margin-right: auto; border: 1px solid #eee; }
+        .message-sender { font-size: 0.8em; color: #555; margin-bottom: 5px; font-weight: bold; }
+        .system-message { font-style: italic; text-align: center; color: #777; font-size: 0.8em; margin-bottom: 10px;}
+
+        .chat-input-container { display: flex; padding: 15px; background-color: #f9f9f9; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+        .chat-input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 25px; outline: none; margin-right: 12px; font-size: 1em; }
+        .send-button { background-color: #007bff; color: white; border: none; border-radius: 25px; padding: 12px 20px; cursor: pointer; transition: background-color 0.3s ease; font-size: 1em; font-weight: bold; }
+        .send-button:hover { background-color: #0056b3; }
+        .username-input-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .username-prompt {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 300px;
+        }
+        .username-prompt input {
+            width: calc(100% - 24px);
+            padding: 10px;
+            margin: 15px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .username-prompt button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+        .username-prompt button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="username-input-container" id="username-prompt-container">
+        <div class="username-prompt">
+            <h2>Enter your username</h2>
+            <input type="text" id="username-input" placeholder="Your name...">
+            <button id="set-username-button">Start Chatting</button>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">Multi-User Chat System</div>
+        <div class="chat-box" id="chat-box">
+            </div>
+        <div class="chat-input-container">
+            <input type="text" id="message-input" class="chat-input" placeholder="Type your message...">
+            <button id="send-button" class="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Connect to the Socket.IO server
+        // Replace 'http://127.0.0.1:5000' with your server's actual address if deployed
+        const socket = io('http://127.0.0.1:5000');
+
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const usernamePromptContainer = document.getElementById('username-prompt-container');
+        const usernameInput = document.getElementById('username-input');
+        const setUsernameButton = document.getElementById('set-username-button');
+
+        let username = '';
+
+        // Function to add a message to the chat box
+        function addMessage(sender, message, type = 'other') { // 'my', 'other', 'system'
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+
+            if (type === 'my') {
+                messageDiv.classList.add('my-message');
+            } else if (type === 'system') {
+                messageDiv.classList.add('system-message');
+            } else {
+                messageDiv.classList.add('other-message');
+            }
+            
+            if (type !== 'system') { // System messages don't need a sender label
+                const senderSpan = document.createElement('div');
+                senderSpan.classList.add('message-sender');
+                senderSpan.textContent = sender;
+                messageDiv.appendChild(senderSpan);
+            }
+
+            const textNode = document.createTextNode(message);
+            messageDiv.appendChild(textNode);
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to bottom
+        }
+
+        // Set username before connecting
+        setUsernameButton.addEventListener('click', () => {
+            const enteredUsername = usernameInput.value.trim();
+            if (enteredUsername) {
+                username = enteredUsername;
+                usernamePromptContainer.style.display = 'none'; // Hide prompt
+                messageInput.focus(); // Focus on message input
+            } else {
+                alert('Please enter a username!');
+            }
+        });
+
+        usernameInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                setUsernameButton.click();
+            }
+        });
+
+
+        // Handle 'connect' event (when the client successfully connects to the server)
+        socket.on('connect', () => {
+            console.log('Connected to server!');
+        });
+
+        // Handle 'disconnect' event
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server.');
+            addMessage('System', 'You have been disconnected from the chat.', 'system');
+        });
+
+        // Handle 'history' event (when a new client receives past messages)
+        socket.on('history', (pastMessages) => {
+            pastMessages.forEach(msg => {
+                addMessage(msg.sender, msg.message, msg.sender === username ? 'my' : 'other');
+            });
+            addMessage('System', `Welcome to the chat, ${username}!`, 'system');
+        });
+
+        // Handle 'message' event (when a new message is received from the server)
+        socket.on('message', (data) => {
+            console.log('Received message:', data);
+            addMessage(data.sender, data.message, data.sender === username ? 'my' : 'other');
+        });
+
+        // Send message function
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message === '' || !username) return; // Don't send empty messages or if username not set
+
+            const messageData = {
+                sender: username,
+                message: message
+            };
+
+            // Emit the message to the server
+            socket.emit('message', messageData);
+            
+            messageInput.value = ''; // Clear input field
+            messageInput.focus(); // Keep focus on input
+        }
+
+        // Event listeners for sending messages
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

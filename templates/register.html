@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register for Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .register-container { background-color: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; width: 350px; max-width: 90%; }
+        h2 { color: #333; margin-bottom: 25px; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: bold; }
+        input[type="text"], input[type="password"] { width: calc(100% - 24px); padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-size: 1.1em; font-weight: bold; transition: background-color 0.3s ease; width: 100%; }
+        button:hover { background-color: #218838; }
+        .flash-message { background-color: #ffe0b2; color: #fb8c00; padding: 10px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #ffb74d;}
+        .error-message { color: red; margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h2>Register for Multi-User Chat</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-message">
+                    {% for message in messages %}
+                        <p>{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form method="POST" action="/register">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required placeholder="Choose a unique username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required placeholder="Choose a strong password">
+            </div>
+            <button type="submit">Register</button>
+        </form>
+        <p>Already have an account? <a href="/login">Login here</a></p>
+    </div>
+</body>
+</html>
